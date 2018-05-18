@@ -1,0 +1,76 @@
+----ITT MÁSIK FELADAT----------6feladat
+CREATE OR REPLACE FUNCTION hanyszor(p1 VARCHAR2, p2 VARCHAR2) RETURN NUMBER AS
+BEGIN
+    RETURN REGEXP_COUNT(p1, p2);
+END hanyszor;
+ 
+SELECT hanyszor ('ab c ab ab de ab fg', 'ab') COUNT FROM dual;
+
+----ITT MÁSIK FELADAT----------1feladat
+
+SET serveroutput ON
+ 
+CREATE TABLE kölcsönzés AS SELECT * FROM branyi.kölcsönzés;
+CREATE TABLE film AS SELECT * FROM branyi.film;
+CREATE TABLE kazetta AS SELECT * FROM branyi.kazetta;
+CREATE TABLE ügyfél AS SELECT * FROM branyi.ügyfél;
+CREATE TABLE naplóa AS SELECT * FROM branyi.naplóa;
+CREATE TABLE igénylés AS SELECT * FROM branyi.igénylés;
+
+CREATE OR REPLACE PROCEDURE kolcsonzes(filmId IN int, userId IN int)
+IS
+    filmek INTEGER := 0;
+    idk INTEGER := 0;
+    kazettak INTEGER := 0;
+    hianyzoid EXCEPTION;
+    hianyzofilm EXCEPTION;
+    nincspeldany EXCEPTION;
+  BEGIN
+ 
+    SELECT COUNT(*) INTO filmek FROM film WHERE fazon=filmId;
+    SELECT COUNT(*) INTO idk FROM ügyfél WHERE igazolványszám=userId;
+ 
+    SELECT COUNT(*) INTO kazettak FROM (SELECT kazon FROM kazetta WHERE fazon = (SELECT fazon FROM film WHERE fazon=filmId) AND kazon NOT IN (SELECT kazon FROM kölcsönzés));
+ 
+    IF filmek = 0 THEN
+        RAISE hianyzofilm;
+    ELSIF idk = 0 THEN
+        RAISE hianyzoid;
+    ELSIF filmek > 0 AND kazettak = 0 THEN
+        RAISE nincspeldany;
+    ELSE
+        INSERT INTO kölcsönzés(igazolványszám, kazon, elvitel_dátuma) VALUES(userId,
+         (SELECT kazon FROM kazetta WHERE fazon=filmId AND kazon NOT IN (SELECT kazon FROM kölcsönzés) AND ROWNUM=1),
+         CURRENT_DATE);
+         DELETE FROM igénylés WHERE fazon=filmId AND igazolványszám=userId;
+    END IF;
+   
+    EXCEPTION
+        WHEN nincspeldany THEN
+            DBMS_OUTPUT.PUT_LINE('Nincs szabad peldany');
+        WHEN hianyzoid THEN
+            DBMS_OUTPUT.PUT_LINE('Nincs ilyen ugyfel');
+        WHEN hianyzofilm THEN
+            DBMS_OUTPUT.PUT_LINE('Nincs ilyen film');  
+  END;
+  
+  ----ITT MÁSIK FELADAT----------4.feladat
+  
+  CREATE OR REPLACE PROCEDURE tulsokkazi IS 
+        CURSOR curs1  IS SELECT * FROM ügyfél NATURAL JOIN kölcsönzés order by igazolványszám;
+		rec  curs1%rowtype;
+		db INTEGER := 0;
+        szoveg integer := rec.igazolványszám;
+	BEGIN
+		FOR rec IN curs1 LOOP
+            if szoveg = rec.igazolványszám then
+                db :=(db+1);
+			ELSE --10
+                db := 0;
+                szoveg:=rec.igazolványszám;
+            end if;
+            if db= 3 then
+                dbms_output.put_line(rec.név);
+            end if;
+		END LOOP;
+	END;

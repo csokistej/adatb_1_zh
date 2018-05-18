@@ -1,0 +1,127 @@
+select * from NIKOVITS.VAGYONOK;
+select * from NIKOVITS.fiz_kategoria;
+select * from NIKOVITS.emp;
+
+select sal from NIKOVITS.emp;
+
+/
+CREATE OR REPLACE FUNCTION kat_atlag(n integer) RETURN number IS
+also number;
+felso number;
+atlag number;
+begin
+select ALSO,FELSO into also,felso from NIKOVITS.fiz_kategoria where n=KATEGORIA;
+select avg(sal) into atlag from NIKOVITS.emp where sal>=also and sal <=felso;
+return atlag;
+end;
+/
+SELECT kat_atlag(5) FROM dual;
+set serveroutput on;
+/
+CREATE OR REPLACE PROCEDURE proc9 IS
+type sor is record
+     (
+     nev NIKOVITS.emp.ename%type,
+     fiz NIKOVITS.emp.sal%type
+     );
+type sorok is Varray(30) of sor;
+asocsor sorok:=sorok();
+Cursor cc is select ename,sal from NIKOVITS.emp order by ename;
+szamol number:=1;
+begin
+for roww in cc loop
+if(szamol mod 2 = 0) then
+ -- sorok.extend;
+  --sorok(szamol/2).nev:=roww.ename;
+  --sorok(szamol/2).fiz:=roww.sal;
+  dbms_output.put_line(roww.ename||' - '||roww.sal);
+end if;
+szamol:=szamol+1;
+end loop;
+end;
+/
+execute proc9();
+/
+Accept d prompt 'Deptno';
+declare
+Cursor cc is select ename,hiredate from NIKOVITS.EMP where deptno='&d';
+b boolean:=false;
+begin
+   dbms_output.put_line(' kivalasztott deptno '||'&d');
+   
+   for sor in cc loop
+     b:=true;
+     dbms_output.put_line(sor.ename||' - '||sor.hiredate);
+   end loop;
+   if (b=false) then
+      dbms_output.put_line('ures');
+   end if;
+   
+end;
+/
+select * from emp;
+/
+CREATE OR REPLACE PROCEDURE kat_novel(p_kat NUMBER) IS 
+atlag number:=0;
+begin
+  update emp set sal=sal+1 where deptno=p_kat;
+  select avg(sal) into atlag from emp where deptno=p_kat;
+    dbms_output.put_line(atlag);
+end;
+/
+execute kat_novel(20);
+rollback;
+/
+CREATE OR REPLACE PROCEDURE fiz_mod(p_oazon INTEGER) IS 
+cursor c1 is select * from emp where deptno=p_oazon for update;
+v_emp c1%rowtype;
+n number;
+begin
+   open c1;
+   Fetch c1 into v_emp;
+   while c1%found loop
+      n:=regexp_count(v_emp.ename,'A|E|I|O|U');
+      update emp set sal=sal+n*10000 where current of c1;
+      fetch c1 into v_emp;
+   end loop;
+   close c1;
+end;
+/
+execute fiz_mod(10);
+select * from emp;
+/
+CREATE OR REPLACE PROCEDURE szamok(n number) IS
+oss number:=1;
+begin
+dbms_output.put_line(1/n);
+dbms_output.put_line(sqrt(n));
+for I in 1..n loop
+oss:=oss*I;
+end loop;
+dbms_output.put_line(oss);
+exception
+when others then
+       dbms_output.put_line('Hiba: '||SQLCODE);
+end;
+/
+execute szamok(40);
+select to_char(date '1982-03-09', 'DAY') from dual;
+set serveroutput on;
+/
+CREATE OR REPLACE FUNCTION nap_nev(p_kar varchar2) RETURN varchar2 IS
+szov varchar2(20):=p_kar;
+begin
+if(instr(p_kar,'.')>3)then
+   szov:=to_char(to_date(p_kar,'YYYY.MM.DD'), 'DAY');
+else
+   szov:=to_char(to_date(p_kar,'DD.MM.YYYY'), 'DAY');
+end if;
+return szov;
+exception
+  when others then 
+         return 'rosz datum';
+end;
+/
+select nap_nev('1997.02.15') from dual;
+
+select to_char(date '1982.03.09', 'DAY') from dual;

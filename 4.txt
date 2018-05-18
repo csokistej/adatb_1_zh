@@ -1,0 +1,101 @@
+/
+create or replace function prim(n integer) return number is
+I number:=2;
+begin
+if(n<I) then 
+   return 0;
+end if;
+while I<=sqrt(n) loop
+  if((n mod I) =0 ) then 
+    return 0;
+  end if;
+I:=I+1;
+end loop;
+return 1;
+end;
+/
+SELECT prim(26388279066623) from dual;
+set serveroutput on;
+/
+CREATE OR REPLACE PROCEDURE fib(n integer) IS
+a number:=0;
+b number:=1;
+
+begin
+if(n=1)then
+   dbms_output.put_line(0);
+   return;
+end if;
+if(n=2)then
+   dbms_output.put_line(1);
+   return;
+end if;   
+for I in 3..n loop
+  b:=b+a;
+  a:=b-a;
+end loop;
+dbms_output.put_line(b);
+end;
+/
+execute fib(6);
+/
+CREATE OR REPLACE FUNCTION lnko(p1 integer, p2 integer) RETURN number IS
+a number:=p1;
+b number:=p2;
+begin
+while a!=b loop
+   if(a>b)then
+      a:=a-b;
+   else 
+      b:=b-a;
+   end if;
+end loop;
+return a;
+end;
+/
+SELECT lnko(10,5) FROM dual;
+
+/
+CREATE OR REPLACE FUNCTION faktor(n integer) RETURN integer IS
+oss number:=1;
+begin
+for I in 1..n loop
+oss:=oss*I;
+end loop;
+return oss;
+end;
+/
+SELECT faktor(5) FROM dual;
+/
+CREATE OR REPLACE FUNCTION hanyszor(p1 VARCHAR2, p2 VARCHAR2) RETURN integer IS
+szam number:=0;
+begin
+for I in 1..(length(p1)-length(p2))+1 loop
+ if(p2=substr(p1,I,length(p2))) then
+   szam:=szam+1;
+ end if;
+end loop;
+return szam;
+end;
+/
+SELECT hanyszor ('ab c ab ab de ab fg', 'ab') FROM dual;
+/
+CREATE OR REPLACE FUNCTION osszeg(p_char VARCHAR2) RETURN number IS
+hely number;
+suma number:=0;
+begin
+hely := instr(p_char,'+');
+while (hely!=0) loop
+dbms_output.put_line(trim(substr(p_char,1,hely-1)));
+suma:=suma+to_number(trim(substr(p_char,1,hely)));
+hely := instr(p_char,'+',hely+1);
+end loop;
+return suma;
+end;
+/
+SELECT osszeg('1 + 4 + 13 + -1 + 0') FROM dual;
+
+
+select * from NIKOVITS.VAGYONOK;
+
+select * from NIKOVITS.EMP;

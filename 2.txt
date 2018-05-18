@@ -1,0 +1,35 @@
+/*2rákotkapokmindenkeddenA*/
+
+CREATE OR REPLACE PROCEDURE selejt (szarfilm IN VARCHAR) IS
+      faszom VARCHAR;
+	  CURSOR C1 IS SELECT * FROM film WHERE cím=szarfilm;
+      CURSOR C2 IS SELECT * FROM kazetta;
+	  CURSOR C3 IS SELECT * FROM kölcsönzés;
+	  filmes C1%ROWTYPE;
+	  kazettas C2%ROWTYPE;
+	  kolcsonos C3%ROWTYPE;
+BEGIN
+      OPEN C1;
+      FETCH C1 INTO filmes;
+      OPEN C2;
+	  FETCH C2 INTO kazetta;
+	  
+	  LOOP	
+		IF kazetta.fazon=filmes.fazon THEN
+			OPEN C3;
+			FETCH C3 INTO kolcsonos;
+			LOOP
+				DELETE FROM kölcsönzés WHERE kazettas.kazon==kolcsonos.kazon;
+				FETCH C3 INTO kolcsonos;
+				EXIT WHEN C3%notfound;
+			END LOOP;
+			CLOSE C3;
+		END IF;
+		DELETE FROM kazetta WHERE kazettas.fazon=kolcsonos.fazon;
+		FETCH C2 INTO kazetta;
+		EXIT WHEN C2%notfound;
+	  END LOOP;
+	  DELETE FROM film WHERE filmes.cím=szarfilm;
+      CLOSE C1;
+	  CLOSE C2;
+END selejt;

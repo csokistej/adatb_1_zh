@@ -1,0 +1,78 @@
+DECLARE
+    BOOLEAN nincskazetta;
+	BOOLEAN nincsugyfel;
+	
+	CURSOR igenyazon IS SELECT igazolványszám FROM igénylés;
+	CURSOR ugyfelazon IS SELECT igazolványszám FROM ügyfél;
+	CURSOR ckazettadb IS SELECT fazon FROM kazetta;
+	CURSOR ckazettauf IS SELECT fazon FROM ügyfél;
+    
+    v_igeny igenyazon%ROWTYPE;
+    v_ugyfel ugyfelazon%ROWTYPE;
+	v_kazettauf ugyfelazon%ROWTYPE;
+	v_kazettadb ckazettauf%ROWTYPE;
+BEGIN
+    OPEN igenyazon;
+	OPEN ugyfelazon;
+	nincskazetta := FALSE;
+	nincsugyfel := FALSE;
+	LOOP
+		FETCH igenyazon INTO v_igeny;
+		LOOP
+			FETCH ugyfelazon INTO v_ugyfel;
+			IF v_ugyfel.igazolványszám = v_igeny.igazolványszám THEN
+				nincsugyfel := TRUE;
+				LOOP
+					FETCH ckazettadb INTO v_kazettadb;
+					LOOP
+						FETCH ckazettauf INTO v_kazettauf;
+						IF ckazettadb = ckazettauf THEN
+							INSERT INTO kölcsönzés VALUES (v_igeny.igazolványszám, v_kazettauf.kazon, CURRENT_DATE);
+							nincskazetta := TRUE;
+						END IF;
+					END LOOP;
+					IF nincskazetta = FALSE THEN
+						DBMS_OUTPUT.PUT_LINE('Nincs ilyen kazetta');
+					END IF;
+				END LOOP;
+				IF nincsugyfel = FALSE THEN
+					DBMS_OUTPUT.PUT_LINE('Nincs ilyen ügyfél');
+				END IF;
+			END IF;
+		END LOOP;
+	END LOOP;
+	
+	CLOSE igenyazon;
+	CLOSE ugyfelazon;
+	CLOSE ckazettadb;
+	CLOSE ckazettauf;
+END;
+/
+show errors
+		
+//1. feladat vége
+
+//B rész
+//SELECT TOP 1 * FROM Table ORDER BY ID DESC
+//5. feladat
+CREATE TRIGGER upd_naplób
+	ON naplób
+	AFTER INSERT, UPDATE, DELETE
+	AS
+	BEGIN
+		IF UPDATE(igénylés)
+		BEGIN			
+			INSERT INTO naplób(DATE,'módosítás',Select top (select COUNT(*) from table) * From tableEXCEPTSelect top ((select COUNT(*) from table)-(1)) * From table,''  );
+		END
+		IF INSERT(igénylés)
+		BEGIN
+			INSERT INTO naplób(DATE,'új igénylés',Select top (select COUNT(*) from table) * From tableEXCEPTSelect top ((select COUNT(*) from table)-(1)) * From table,''  );
+		END
+		IF DELETE
+		BEGIN
+			INSERT INTO naplób(DATE,'törlés',Select top (select COUNT(*) from table) * From tableEXCEPTSelect top ((select COUNT(*) from table)-(1)) * From table,''  );
+		END
+	END
+END
+
+
