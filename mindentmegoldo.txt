@@ -1,0 +1,188 @@
+Paste2
+Create Paste
+Followup Paste
+QR
+set serveroutput on;
+
+create table kölcsönzés as select * from branyi.kölcsönzés;
+create table film as select * from branyi.film;
+create table kazetta as select * from branyi.kazetta;
+create table ügyfél as select * from branyi.ügyfél;
+
+--1. feladat
+create table napló(
+  sorszám integer PRIMARY KEY,
+  dátum DATE DEFAULT CURRENT_DATE,
+  mûvelet VARCHAR(20),
+  CONSTRAINT mûvelet CHECK(mûvelet IN ('beszúrás', 'módosítás', 'törlés')),
+  felhasználó varchar(200) references branyi.hallgatok(azonosito)
+);
+
+--2. feladat
+create or replace PROCEDURE loan(title in varchar, userId in int)
+IS
+    matchingMovieCount integer := 0;
+    matchingIdCount integer := 0;
+    loanableKazettaCount integer := 0;
+    missing_id EXCEPTION;
+    missing_title EXCEPTION;
+    all_loaned EXCEPTION;
+  BEGIN
+
+    select count(*) into matchingMovieCount from film where cím=title;
+    select count(*) into matchingIdCount from ügyfél where igazolványszám=userId;
+
+    select count(*) into loanableKazettaCount from (select kazon from kazetta where fazon=(select fazon from film where cím=title) and kazon not in (select kazon from kölcsönzés));
+
+    if matchingMovieCount = 0 then
+        raise missing_title;
+    elsif matchingIdCount = 0 then
+        raise missing_id;
+    elsif matchingMovieCount > 0 and loanableKazettaCount = 0 then
+        raise all_loaned;
+    else
+        insert into kölcsönzés(igazolványszám, kazon, elvitel_dátuma) values(userId, 
+         (select kazon from kazetta where fazon=(select fazon from film where cím=title) and kazon not in (select kazon from kölcsönzés) and rownum=1),
+         CURRENT_DATE);
+    end if;
+    
+    exception
+        when missing_title then
+            DBMS_OUTPUT.PUT_LINE('Film nem létezik');
+        when missing_id then
+            DBMS_OUTPUT.PUT_LINE('Ügyfél nem létezik');
+        when all_loaned then
+            DBMS_OUTPUT.PUT_LINE('Mind ki van kölcsönözve');
+   
+  END;
+  /
+
+--2. 2. feladat
+create or replace procedure delete_movie(title in varchar)
+IS
+    loanedKazettaCount integer := 0;
+    movieId integer := 0;
+begin
+    select fazon into movieId from film where cím=title;
+
+    select count(*) into loanedKazettaCount from kazetta where fazon=movieId and kazon in (select kazon from kölcsönzés);
+
+    if loanedKazettaCount > 0 then
+        delete from kazetta where fazon=movieId and kazon not in (select kazon from kölcsönzés);
+    else
+        delete from kazetta where fazon=movieId;
+        delete from film where fazon=movieId;
+    end if;
+    
+end;
+/
+
+
+--3. feladat
+create or replace function get_price(movieId in integer) return float
+IS
+    movieGenre varchar(100);
+    movieLength integer;
+    movieDate date;
+    discount integer;
+    price float;
+    begin
+        select mûfaj,hossz,készült into movieGenre,movieLength,movieDate from film where fazon=movieId;
+        if (movieGenre in ('kaland', 'akció', 'scifi', 'thriller', 'horror')) then
+            price := movieLength * 5;
+            discount := extract(YEAR from CURRENT_DATE) - extract(YEAR from movieDate);
+            
+            price := ((100 - discount) / 100) * price;
+            return price;
+        else
+            price := movieLength * 10;
+            return price;
+        end if;
+        
+    end;
+    /
+    
+begin
+    DBMS_OUTPUT.PUT_LINE(get_price(5));
+end;
+/
+
+--4. feladat
+create or replace procedure fibonacci
+IS
+    a integer := 0;
+    b integer := 1;
+    counter integer := 1;
+    cursor k is select név from ügyfél order by igazolványszám;
+    begin
+        for sor in k loop
+            if counter = a+b then
+                DBMS_OUTPUT.PUT_LINE(sor.név);
+                a := b;
+                b := counter;
+            end if;
+            counter := counter + 1;
+        end loop;
+    end;
+    /
+
+begin
+    fibonacci();
+end;
+/
+
+
+--5. feladat
+create or replace trigger log_trigger after insert or update or delete on kölcsönzés
+ declare
+   logCount integer;
+begin
+    
+    select count(*) into logCount from napló;
+    logCount := logCount+1;
+
+    case 
+        when INSERTING then
+            insert into napló(sorszám, dátum, mûvelet, felhasználó) values(logCount, CURRENT_DATE, 'beszúrás', USER);
+        when UPDATING then
+            insert into napló(sorszám, dátum, mûvelet, felhasználó) values(logCount, CURRENT_DATE, 'módosítás', USER);
+        when DELETING then
+            insert into napló(sorszám, dátum, mûvelet, felhasználó) values(logCount, CURRENT_DATE, 'törlés', USER);
+
+        end case;
+end;
+/
+
+
+--6. feladat
+create or replace function osszeg(p_char VARCHAR2) return number 
+IS
+    i integer := 1;
+    result integer := 0;
+    current varchar(100);
+begin
+    
+    while i <= length(p_char) loop
+
+        if instr(p_char, ' + ', i)=0 then
+            current := substr(p_char, i);
+            i := length(p_char) + 1;
+        else
+            current := substr(p_char, i, instr(p_char, ' + ', i) - i);
+            i := instr(p_char, ' + ', i) + 3;
+        end if;
+
+        result := result + to_number(current);
+
+        DBMS_OUTPUT.PUT_LINE(current);
+            
+    end loop;
+    return result;
+    
+end;
+/
+
+begin
+    DBMS_OUTPUT.PUT_LINE(osszeg('1 + 4 + 13 + 0'));
+end;
+/
