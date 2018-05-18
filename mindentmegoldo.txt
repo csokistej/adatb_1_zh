@@ -1,21 +1,17 @@
-Paste2
-Create Paste
-Followup Paste
-QR
 set serveroutput on;
 
-create table kölcsönzés as select * from branyi.kölcsönzés;
+create table kÃ¶lcsÃ¶nzÃ©s as select * from branyi.kÃ¶lcsÃ¶nzÃ©s;
 create table film as select * from branyi.film;
 create table kazetta as select * from branyi.kazetta;
-create table ügyfél as select * from branyi.ügyfél;
+create table Ã¼gyfÃ©l as select * from branyi.Ã¼gyfÃ©l;
 
 --1. feladat
-create table napló(
-  sorszám integer PRIMARY KEY,
-  dátum DATE DEFAULT CURRENT_DATE,
-  mûvelet VARCHAR(20),
-  CONSTRAINT mûvelet CHECK(mûvelet IN ('beszúrás', 'módosítás', 'törlés')),
-  felhasználó varchar(200) references branyi.hallgatok(azonosito)
+create table naplÃ³(
+  sorszÃ¡m integer PRIMARY KEY,
+  dÃ¡tum DATE DEFAULT CURRENT_DATE,
+  mÃ»velet VARCHAR(20),
+  CONSTRAINT mÃ»velet CHECK(mÃ»velet IN ('beszÃºrÃ¡s', 'mÃ³dosÃ­tÃ¡s', 'tÃ¶rlÃ©s')),
+  felhasznÃ¡lÃ³ varchar(200) references branyi.hallgatok(azonosito)
 );
 
 --2. feladat
@@ -29,10 +25,10 @@ IS
     all_loaned EXCEPTION;
   BEGIN
 
-    select count(*) into matchingMovieCount from film where cím=title;
-    select count(*) into matchingIdCount from ügyfél where igazolványszám=userId;
+    select count(*) into matchingMovieCount from film where cÃ­m=title;
+    select count(*) into matchingIdCount from Ã¼gyfÃ©l where igazolvÃ¡nyszÃ¡m=userId;
 
-    select count(*) into loanableKazettaCount from (select kazon from kazetta where fazon=(select fazon from film where cím=title) and kazon not in (select kazon from kölcsönzés));
+    select count(*) into loanableKazettaCount from (select kazon from kazetta where fazon=(select fazon from film where cÃ­m=title) and kazon not in (select kazon from kÃ¶lcsÃ¶nzÃ©s));
 
     if matchingMovieCount = 0 then
         raise missing_title;
@@ -41,18 +37,18 @@ IS
     elsif matchingMovieCount > 0 and loanableKazettaCount = 0 then
         raise all_loaned;
     else
-        insert into kölcsönzés(igazolványszám, kazon, elvitel_dátuma) values(userId, 
-         (select kazon from kazetta where fazon=(select fazon from film where cím=title) and kazon not in (select kazon from kölcsönzés) and rownum=1),
+        insert into kÃ¶lcsÃ¶nzÃ©s(igazolvÃ¡nyszÃ¡m, kazon, elvitel_dÃ¡tuma) values(userId, 
+         (select kazon from kazetta where fazon=(select fazon from film where cÃ­m=title) and kazon not in (select kazon from kÃ¶lcsÃ¶nzÃ©s) and rownum=1),
          CURRENT_DATE);
     end if;
     
     exception
         when missing_title then
-            DBMS_OUTPUT.PUT_LINE('Film nem létezik');
+            DBMS_OUTPUT.PUT_LINE('Film nem lÃ©tezik');
         when missing_id then
-            DBMS_OUTPUT.PUT_LINE('Ügyfél nem létezik');
+            DBMS_OUTPUT.PUT_LINE('ÃœgyfÃ©l nem lÃ©tezik');
         when all_loaned then
-            DBMS_OUTPUT.PUT_LINE('Mind ki van kölcsönözve');
+            DBMS_OUTPUT.PUT_LINE('Mind ki van kÃ¶lcsÃ¶nÃ¶zve');
    
   END;
   /
@@ -63,12 +59,12 @@ IS
     loanedKazettaCount integer := 0;
     movieId integer := 0;
 begin
-    select fazon into movieId from film where cím=title;
+    select fazon into movieId from film where cÃ­m=title;
 
-    select count(*) into loanedKazettaCount from kazetta where fazon=movieId and kazon in (select kazon from kölcsönzés);
+    select count(*) into loanedKazettaCount from kazetta where fazon=movieId and kazon in (select kazon from kÃ¶lcsÃ¶nzÃ©s);
 
     if loanedKazettaCount > 0 then
-        delete from kazetta where fazon=movieId and kazon not in (select kazon from kölcsönzés);
+        delete from kazetta where fazon=movieId and kazon not in (select kazon from kÃ¶lcsÃ¶nzÃ©s);
     else
         delete from kazetta where fazon=movieId;
         delete from film where fazon=movieId;
@@ -87,8 +83,8 @@ IS
     discount integer;
     price float;
     begin
-        select mûfaj,hossz,készült into movieGenre,movieLength,movieDate from film where fazon=movieId;
-        if (movieGenre in ('kaland', 'akció', 'scifi', 'thriller', 'horror')) then
+        select mÃ»faj,hossz,kÃ©szÃ¼lt into movieGenre,movieLength,movieDate from film where fazon=movieId;
+        if (movieGenre in ('kaland', 'akciÃ³', 'scifi', 'thriller', 'horror')) then
             price := movieLength * 5;
             discount := extract(YEAR from CURRENT_DATE) - extract(YEAR from movieDate);
             
@@ -113,11 +109,11 @@ IS
     a integer := 0;
     b integer := 1;
     counter integer := 1;
-    cursor k is select név from ügyfél order by igazolványszám;
+    cursor k is select nÃ©v from Ã¼gyfÃ©l order by igazolvÃ¡nyszÃ¡m;
     begin
         for sor in k loop
             if counter = a+b then
-                DBMS_OUTPUT.PUT_LINE(sor.név);
+                DBMS_OUTPUT.PUT_LINE(sor.nÃ©v);
                 a := b;
                 b := counter;
             end if;
@@ -133,21 +129,21 @@ end;
 
 
 --5. feladat
-create or replace trigger log_trigger after insert or update or delete on kölcsönzés
+create or replace trigger log_trigger after insert or update or delete on kÃ¶lcsÃ¶nzÃ©s
  declare
    logCount integer;
 begin
     
-    select count(*) into logCount from napló;
+    select count(*) into logCount from naplÃ³;
     logCount := logCount+1;
 
     case 
         when INSERTING then
-            insert into napló(sorszám, dátum, mûvelet, felhasználó) values(logCount, CURRENT_DATE, 'beszúrás', USER);
+            insert into naplÃ³(sorszÃ¡m, dÃ¡tum, mÃ»velet, felhasznÃ¡lÃ³) values(logCount, CURRENT_DATE, 'beszÃºrÃ¡s', USER);
         when UPDATING then
-            insert into napló(sorszám, dátum, mûvelet, felhasználó) values(logCount, CURRENT_DATE, 'módosítás', USER);
+            insert into naplÃ³(sorszÃ¡m, dÃ¡tum, mÃ»velet, felhasznÃ¡lÃ³) values(logCount, CURRENT_DATE, 'mÃ³dosÃ­tÃ¡s', USER);
         when DELETING then
-            insert into napló(sorszám, dátum, mûvelet, felhasználó) values(logCount, CURRENT_DATE, 'törlés', USER);
+            insert into naplÃ³(sorszÃ¡m, dÃ¡tum, mÃ»velet, felhasznÃ¡lÃ³) values(logCount, CURRENT_DATE, 'tÃ¶rlÃ©s', USER);
 
         end case;
 end;
