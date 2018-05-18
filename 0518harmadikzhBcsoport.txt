@@ -1,0 +1,140 @@
+--3. Zárthelyi
+
+
+set serveroutput on;
+
+--1. Feladat
+
+CREATE OR REPLACE PROCEDURE kolcs(fcim IN film.cím%type, ig IN kölcsönzés.igazolványszám%type) AS
+    hanyfilmnincskikolcsonozve int;
+    counter int;
+    counter2 int;
+    kazi kazetta.kazon%type;
+    van1 boolean;
+    van2 boolean;
+BEGIN
+    SELECT COUNT(*) INTO counter FROM ügyfél WHERE igazolványszám=ig;
+    van1 := sql%found;
+    SELECT COUNT(*) INTO counter2 FROM film WHERE cím=fcim;
+    van2 := sql%found;
+    
+    IF(van1 AND van2 AND counter > 0 AND counter2 > 0) THEN
+        select kazon into kazi from kazetta where fazon in (select fazon from film WHERE cím=fcim) and kazon not in (select kazon from kölcsönzés where kazon in (select kazon from kazetta where fazon in (select fazon from film WHERE cím=fcim))) AND ROWNUM = 1;
+        SELECT COUNT(*) INTO hanyfilmnincskikolcsonozve FROM (select kazon from kazetta where fazon in (select fazon from film WHERE cím=fcim) and kazon not in (select kazon from kölcsönzés where kazon in (select kazon from kazetta where fazon in (select fazon from film WHERE cím=fcim))));
+        IF(hanyfilmnincskikolcsonozve > 0) THEN
+            INSERT INTO kölcsönzés (igazolványszám, kazon, elvitel_dátuma) VALUES (ig,kazi,to_char(sysdate));
+        ELSE
+            dbms_output.put_line('Nincs benn ez a film!');
+        END IF;
+    ELSIF(counter = 0) THEN
+        dbms_output.put_line('Nincs ilyen igazolványszám');
+    ELSIF(counter2 = 0) THEN
+        dbms_output.put_line('Nincs ilyen filmcím');
+    END IF;
+END;
+/
+
+execute kolcs('cím7', 2);
+
+--2. Feladat
+
+CREATE OR REPLACE PROCEDURE torles(filmcime IN varchar2) AS
+CURSOR torol IS select fazon, kazon from film natural join kazetta where cím=filmcime;
+BEGIN
+        FOR n IN torol LOOP
+            DELETE FROM kölcsönzés WHERE kazon=n.kazon;
+            DELETE FROM kazetta WHERE kazon=n.kazon;
+            DELETE FROM film WHERE fazon=n.fazon;
+        END LOOP;
+END;
+/
+execute torles('cím6');
+
+
+--3. feladat
+
+
+create or replace type array_r is varray(100) of number;
+/
+
+CREATE OR REPLACE FUNCTION listazas RETURN array_r AS
+CURSOR listing IS select mufaj, hossz, készült FROM film;
+arak array_r := array_r();
+counter int := 0;
+BEGIN
+    for n IN listing LOOP
+        --dbms_output.put_line(n.mufaj);
+        IF (n.mufaj = 'kaland' OR n.mufaj = 'akció' OR n.mufaj = 'scifi' OR n.mufaj = 'thriller' OR n.mufaj = 'horror') THEN
+            counter := counter + 1;
+            arak.extend;
+            arak(counter) := (n.hossz * 10) - (n.hossz * 10) * ((to_char(SYSDATE, 'YYYY') - to_char(n.készült, 'YYYY')) / 100);
+        END IF;
+    END LOOP;
+    RETURN arak;
+END;
+/
+
+--Teszteli a listazas függvényt!!!
+DECLARE
+tombom array_r := array_r();
+darab int;
+BEGIN
+    tombom := listazas();
+    darab := tombom.count;
+    for n IN 1..darab LOOP
+        dbms_output.put_line(tombom(n));
+    END LOOP;
+END;
+/
+
+
+--4. feladat
+
+CREATE OR REPLACE PROCEDURE tobbmintketto AS
+CURSOR crsor IS select cím from film where fazon in (select fazon from kazetta where kazon in (select kazon from ((select kazon, c from (select kazon, COUNT(*) as c from kölcsönzés GROUP BY(kazon)) where c > 2))));
+BEGIN
+    FOR n IN crsor LOOP
+        dbms_output.put_line(n.cím);
+    END LOOP;
+END;
+/
+
+execute tobbmintketto;
+
+--select cím from film where fazon in (select fazon from kazetta where kazon in (select kazon from ((select kazon, c from (select kazon, COUNT(*) as c from kölcsönzés GROUP BY(kazon)) where c > 2))));
+
+--5. feladat
+/
+CREATE OR REPLACE TRIGGER modositas BEFORE DELETE OR INSERT OR UPDATE ON film
+FOR EACH ROW
+begin
+    IF INSERTING THEN
+        INSERT INTO NAPLÓ (DÁTUM, MUVELET, USERX, KAZON) VALUES (SYSDATE, 'új film', user);
+    ELSIF DELETING THEN
+        INSERT INTO NAPLÓ (DÁTUM, MUVELET, USERX, KAZON) VALUES (SYSDATE, 'film törlés', user);
+    ELSIF UPDATING THEN
+        INSERT INTO NAPLÓ (DÁTUM, MUVELET, USERX, KAZON) VALUES (SYSDATE, 'adat módosítás', user);
+    END IF;
+end;
+/
+
+--6. feladat
+/
+create or replace PROCEDURE kor_kereso(kezdopont VARCHAR2) IS
+CURSOR crs1 IS SELECT CONNECT_BY_ROOT honnan AS indulas, hova AS cel, LEVEL, 
+       SUBSTR(SYS_CONNECT_BY_PATH(honnan, '->')||'->'||hova, 3) Utvonal
+FROM nikovits.jaratok
+WHERE CONNECT_BY_ISCYCLE = 1 AND hova = kezdopont
+START WITH honnan=kezdopont
+CONNECT BY NOCYCLE PRIOR hova = honnan
+ORDER BY LEVEL;
+rec crs1%ROWTYPE;
+BEGIN
+OPEN crs1;
+LOOP
+ FETCH crs1 INTO rec;
+ EXIT WHEN crs1%NOTFOUND;
+ dbms_output.put_line(rec.Utvonal);
+END LOOP;
+END;
+/
