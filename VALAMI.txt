@@ -53,7 +53,7 @@ IS
         WHEN hianyzofilm THEN
             DBMS_OUTPUT.PUT_LINE('Nincs ilyen film');  
   END;
-  
+  /
   ----ITT MÁSIK FELADAT----------4.feladat
   
   CREATE OR REPLACE PROCEDURE tulsokkazi IS 
